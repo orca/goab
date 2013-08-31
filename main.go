@@ -12,10 +12,12 @@ import (
 var l sync.Mutex
 var finished = 0
 var sig = make(chan int)
+var error_request = 0
+var success_request = 0
 
 func main() {
-	c := flag.Int("c", 10, "The number of concurrent")
-	n := flag.Int("n", 1000, "The number of total requests")
+	c := flag.Int("c", 10, "Concurrency level")
+	n := flag.Int("n", 1000, "otal requests")
 	url := flag.String("url", "http://localhost", "The url to test benchmark")
 
 	flag.Parse()
@@ -30,8 +32,11 @@ func main() {
 	<-sig
 	t := time.Now().Sub(time_begin)
 
-	fmt.Println("Total time Nano", t.Nanoseconds())
-	fmt.Println("Total time second", t.Seconds())
+	fmt.Println("Total time", t.Seconds())
+	fmt.Println("success request:", success_request)
+	fmt.Println("error request:", error_request)
+	fmt.Println("Time per request", t.Seconds()/float64(*n))
+	fmt.Println("benchmark:", float64(*n)/t.Seconds())
 	fmt.Println("n", *n)
 	fmt.Println("c", *c)
 	fmt.Println("url", *url)
@@ -47,14 +52,13 @@ func requestUrl(pool chan string, n int) {
 	for {
 		url := <-pool
 		_, err := http.Get(url)
-		if err != nil {
-
-		} else {
-
-		}
-
 		l.Lock()
-		finished = finished + 1
+		if err != nil {
+			error_request++
+		} else {
+			success_request++
+		}
+		finished++
 		l.Unlock()
 		if finished >= n {
 			sig <- 1
